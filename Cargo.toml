@@ -1,0 +1,8 @@
+[package]
+name = "rust-zk-lab"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sha2 = "0.10"        # 用于哈希实验
+hex = "0.4"          # 用于十六进制数据展示
