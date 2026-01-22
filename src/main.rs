@@ -1,7 +1,8 @@
 // 声明专题模块
-mod s01_ownership;
-mod s02_traits;
-mod s03_zk_foundations;
+mod s01_memory;
+mod s02_abstraction;
+mod s03_smart_pointers;
+mod s04_concurrency;
 
 // 第一个实验：递归结构与内存确定性
 struct Block {
