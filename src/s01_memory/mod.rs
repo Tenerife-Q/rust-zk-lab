@@ -19,8 +19,8 @@ pub fn run_experiments() {
         io::stdin().read_line(&mut input).expect("读取失败");
 
         match input.trim() {
-            "1" => ex01_basic::run(),     // 运行你刚才写的 Account
-            "2" => ex02_advanced::run(),  // 运行新的 Mempool 题目
+            "1" => ex01_basic::run_experiments(),     // 运行你刚才写的 Account
+            "2" => ex02_advanced::run_experiments(),  // 运行新的 Mempool 题目
             "0" => break,                 // 跳出循环，返回 main
             _ => println!("❌ 无效选择，请重试"),
         }
