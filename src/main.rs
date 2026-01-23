@@ -1,29 +1,31 @@
-// 声明专题模块
-mod s01_memory;
-mod s02_abstraction;
-mod s03_smart_pointers;
-mod s04_concurrency;
+// src/main.rs
 
-// 第一个实验：递归结构与内存确定性
-struct Block {
-    data: String,
-    prev_hash: Option<String>,
-    // 实验任务：取消下面一行的注释，观察编译器报错并利用 NotebookLM 分析原因
-    // prev_block: Option<Block>, 
-}
+// 这里的 s01_memory 会自动去寻找 s01_memory/mod.rs
+mod s01_memory;
+// mod s02_abstraction; 
+
+use std::io;
 
 fn main() {
-    println!("--- Rust 深度实验室已启动 ---");
-    
-    let block_data = String::from("Genesis Block");
-    
-    let _genesis = Block {
-        data: block_data,
-        prev_hash: None,
-    };
-    
-    // 费曼思考：如果在这里再次打印 block_data，会发生什么？为什么？
-    // println!("{}", block_data); 
+    loop {
+        println!("\n=============================================");
+        println!("    🦀 Rust 工程化复习实验室 (v3.0)    ");
+        println!("=============================================");
+        println!("1. S01: 内存基本法 (Memory)");
+        println!("2. S02: 抽象与契约 (Traits) [锁定]");
+        println!("0. 退出系统");
+        println!("请选择板块:");
 
-    println!("状态检查：环境配置成功，可以开始实验。");
+        let mut choice = String::new();
+        io::stdin().read_line(&mut choice).expect("读取失败");
+
+        match choice.trim() {
+            "1" => s01_memory::run_experiments(), // 进入二级菜单
+            "0" => {
+                println!("👋 再见!");
+                break;
+            },
+            _ => println!("❌ 无效选择"),
+        }
+    }
 }
