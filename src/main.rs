@@ -1,7 +1,8 @@
 // src/main.rs
 
 mod s01_memory;
-mod s02_abstraction; // ✅ 取消这里的注释，启用模块
+mod s02_abstraction; 
+mod s03_smart_pointers;
 
 use std::io;
 
@@ -12,6 +13,7 @@ fn main() {
         println!("=============================================");
         println!("1. S01: 内存基本法 (Memory)");
         println!("2. S02: 抽象与契约 (Traits) [已解锁]");
+        println!("3. S03: 智能指针 (Smart Pointers) [已解锁]");
         println!("0. 退出系统");
         println!("请选择板块:");
 
@@ -21,6 +23,7 @@ fn main() {
         match choice.trim() {
             "1" => s01_memory::run_experiments(),
             "2" => s02_abstraction::run_experiments(), // ✅ 这里接入 S02
+            "3" => s03_smart_pointers::run_experiments(), // ✅ 这里接入 S03
             "0" => {
                 println!("👋 再见!");
                 break;
