@@ -14,8 +14,8 @@ pub struct ConsensusConfig {
 // 编译器报错：expected named lifetime parameter
 // 潜台词："你这个结构体里有个引用，万一结构体还活着，引用的数据先死了怎么办？"
 // "你必须给我保证：Validator 活多久，这个引用就要能活多久。"
-pub struct Validator {
-    pub config: &ConsensusConfig, // 这里缺了一个生命周期标注
+pub struct Validator<'a> {
+    pub config: &'a ConsensusConfig, // 修复：添加生命周期标注 'a
 }
 
 // ==========================================
@@ -24,11 +24,11 @@ pub struct Validator {
 
 // 即使你修复了上面，这里也会报错。
 // 因为 impl 也是泛型的，你得告诉编译器这里的 'a 是啥。
-impl Validator {
+impl<'a> Validator<'a> {
     // 构造函数
     // 注意：输入的是引用的 config，输出的是持有引用的 Validator
     // 它们之间的生命周期必须关联起来
-    pub fn new(config: &ConsensusConfig) -> Validator {
+    pub fn new(config: &'a ConsensusConfig) -> Validator<'a> {
         Validator { config }
     }
 
