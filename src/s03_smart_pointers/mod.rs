@@ -1,5 +1,5 @@
 pub mod ex01_box;
-// pub mod ex02_rc;      // 待解锁
+pub mod ex02_rc;      
 // pub mod ex03_refcell; // 待解锁
 
 use std::io;
@@ -8,6 +8,7 @@ pub fn run_experiments() {
     loop {
         println!("\n--- 🧠 S03 智能指针 (Smart Pointers) ---");
         println!("1. Box与递归类型 (Simple Blockchain)");
+        println!("2. Rc 共享所有权 (DAG)");
         println!("0. 返回主菜单");
         println!("请输入练习编号:");
 
@@ -17,6 +18,7 @@ pub fn run_experiments() {
         match input.trim() {
             "1" => ex01_box::run(),
             "0" => break,
+            "2" => ex02_rc::run(),
             _ => println!("❌ 无效选择"),
         }
     }
