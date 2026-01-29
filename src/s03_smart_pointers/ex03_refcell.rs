@@ -26,16 +26,23 @@ impl Node {
         
         // 第一步：申请锁 (Request)
         // 代码执行 self.pool.borrow_mut()。CPU 沿着栈上的指针找到堆上的 RcBox。
-        // 运行时检查 (Runtime Check)：查看 borrow_flag（位于 RcBox 偏移 0x10 处）。
-        // 如果 flag == 0：通过。
-        // 如果 flag > 0：Panic! (报错：already borrowed: BorrowMutError)。
-        //  因为 Rust 禁止同时存在可变和不可变借用。脏读写会导致不可预测的行为。
-        // 如果 flag == -1：Panic! (报错：already borrowed: BorrowMutError)。
-        //  因为 Rust 禁止同时存在两个可变借用。这是为了数据一致性。
+        // 编译时静态欺骗：借用检查在编译期被绕过了，RefCell 允许在不可变上下文中修改数据。
+        // 本质上利用了UnsafeCell这个唯一允许内部可变性的底层原语。
+        // 能够保证虽然改了不可变引用中的数据，但代码逻辑上依然是安全的。
+        
+        // 绕过了编译器的检查，但 RefCell 必须自己建立一套运行时检查机制，
+        // 数据安全性的关键在于 RefCell 内部维护的 borrow_flag。就是下面
+        // 运行时动态检查 (Runtime Check)：查看 borrow_flag（位于 RcBox 偏移 0x10 处）。
+        //  如果 flag == 0：通过。
+        //  如果 flag > 0：Panic! (报错：already borrowed: BorrowMutError)。
+        //      因为 Rust 禁止同时存在可变和不可变借用。脏读写会导致不可预测的行为。
+        //  如果 flag == -1：Panic! (报错：already borrowed: BorrowMutError)。
+        //      因为 Rust 禁止同时存在两个可变借用。这是为了数据一致性。
         
         // 第二步：上锁 (Lock) & 第三步：发放凭证 (Guard Creation)
         // 检查通过，RefCell 将 borrow_flag 设为 -1。此时其他借用请求都会被拒绝，直到这个借用结束。
-        // 返回一个 RefMut<'a, Mempool> 智能指针（即下面的 pool_guard）。
+        // 不是直接返回 &mut Mempool，而是创建一个 RefMut<'a, Mempool> 智能指针。
+        // 返回 RefMut<'a, Mempool> 智能指针（即下面的 pool_guard）。
         let mut pool_guard = self.pool.borrow_mut();
         
         // 第四步：操作数据 (Mutation)
@@ -128,6 +135,12 @@ pub fn run() {
 - Rc：负责堆内存的存活（只要有人拿着钥匙，房间就不销毁）。
 - RefCell：负责堆内存的借用规则（房间门上的计数器，运行时检查）。
 - borrow_mut：修改计数器为 -1，并给你一个带自动恢复功能的句柄 (RefMut)。
+RefCell<T> 是 Rust 提供的一种 “妥协机制”。
+
+RefCell 解决了 “在不可变上下文中需要修改数据” 的矛盾。
+它相比 Rc 的改进在于 “解冻”，让共享数据变得可编辑。
+代价是：你需要自己在脑子里保证运行时不会发生“同时读写”或“多重写”，
+否则程序会像 C++ 指针越界一样直接崩给你看（Panic）。
 */
 
 
