@@ -1,6 +1,6 @@
 pub mod ex01_box;
 pub mod ex02_rc;      
-// pub mod ex03_refcell; // 待解锁
+pub mod ex03_refcell;
 
 use std::io;
 
@@ -9,6 +9,7 @@ pub fn run_experiments() {
         println!("\n--- 🧠 S03 智能指针 (Smart Pointers) ---");
         println!("1. Box与递归类型 (Simple Blockchain)");
         println!("2. Rc 共享所有权 (DAG)");
+        println!("3. RefCell 内部可变性");
         println!("0. 返回主菜单");
         println!("请输入练习编号:");
 
@@ -19,6 +20,7 @@ pub fn run_experiments() {
             "1" => ex01_box::run(),
             "0" => break,
             "2" => ex02_rc::run(),
+            "3" => ex03_refcell::run(),
             _ => println!("❌ 无效选择"),
         }
     }
