@@ -33,8 +33,8 @@ pub fn run() {
         let handle = thread::spawn(move || {
             // 3. 获取锁
             // lock() 会阻塞，直到拿到锁
-            // unwrap() 是因为如果别的线程 panic 了，锁会"中毒"(Poisoned)，这里简化处理
-            let mut num = account_ref.lock().unwrap();
+            // unwrap() 是因为如果别的线程 panic 了，锁会"中毒"(Poisoned)，这里简化处理，直接崩溃
+           let mut num = account_ref.lock().unwrap();
 
             // 4. 修改数据
             *num += 10;
@@ -172,13 +172,21 @@ let mut num = account_ref.lock().unwrap();
     - 如果是 0（Unlocked），它会把它改成 1（Locked），表示当前线程持有锁。
     - 如果是 1 或 2（Locked），当前线程会被阻塞，直到锁可用。
     这个过程是通过操作系统的原子操作和调度机制实现的，确保线程安全。
+
 2. MutexGuard(num):
     lock() 返回一个 MutexGuard，它是一个智能指针，持有对 Mutex 的引用。
     当 MutexGuard 超出作用域时，它会自动调用 drop() 方法，释放锁。
     这确保了即使线程发生 panic，锁也会被正确释放，避免死锁。
+    这个智能指针利用了RAII机制，当离开作用域时自动清理资源，避免了死锁风险。
+    这也是不能只用 &mut i32 的原因，因为那样无法保证锁的释放。
+    MutexGuard 是一个包裹着 &mut T 的结构体。它实现了 Deref 和 Drop。
+        Deref：让你感觉它就是个 T。你可以直接 *num += 10。
+        Drop：这是关键。它手里拿着“钥匙”（锁的引用）。当它死的时候，它必须把钥匙插回去转一下（解锁）。
+
 3. 修改数据(*num += 10):
     通过解引用 MutexGuard（*num），我们可以安全地访问和修改内部的 i32 数据。
     这里我们把余额增加了 10。
+    
 4. 自动释放锁(move || { ... }结束):
     当 MutexGuard 离开作用域时，Rust 会自动调用它的 drop() 方法。
     这会把 inner 字段的状态从 1（Locked）改回 0（Unlocked），允许其他线程获取锁。
