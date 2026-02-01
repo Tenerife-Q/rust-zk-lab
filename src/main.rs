@@ -4,6 +4,7 @@ mod s01_memory;
 mod s02_abstraction; 
 mod s03_smart_pointers;
 mod s04_concurrency;
+mod s05_zk_lab;
 
 use std::io;
 
@@ -16,6 +17,7 @@ fn main() {
         println!("2. S02: 抽象与契约 (Traits) [已解锁]");
         println!("3. S03: 智能指针 (Smart Pointers) [已解锁]");
         println!("4. S04: 并发安全性 (Concurrency) [已解锁]");
+        println!("5. S05: 零知识证明实验室 (ZK Lab) [已解锁]");
         println!("0. 退出系统");
         println!("请选择板块:");
 
@@ -31,6 +33,7 @@ fn main() {
                 println!("👋 再见!");
                 break;
             },
+            "5" => s05_zk_lab::run(),
             _ => println!("❌ 无效选择"),
         }
     }
