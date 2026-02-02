@@ -1,5 +1,5 @@
 // src/s05_zk_lab.rs
-use std::fmt;
+// use std::fmt;
 
 // 引入一个简易的哈希模拟函数（在真实项目中我们会用 sha2/keccak）
 // 这里为了不引入外部 crate，我们用标准库模拟一个 "Hash"
@@ -109,10 +109,23 @@ impl MerkleTree {
         //    parent = Node::new_internal(left, right)
         //    next_level.push(parent)
         
+        /* 
+        // 原始实现（虽然可行，但因为 chunks 只给引用，导致必须 clone Box<Node> 即深拷贝整棵子树，效率较低）：
         for chunk in nodes.chunks(2) {
              let left = chunk[0].clone();
              let right = chunk[1].clone();
              next_level.push(Box::new(Node::new_internal(left, right)));
+        }
+        */
+
+        // 优化方案：把 nodes 的所有权转移给迭代器，避免 clone 整个子树
+        // 注意：into_iter 会按原顺序逐个产出节点，保证 Merkle 树顺序一致
+        let mut iter = nodes.into_iter();
+        while let Some(left) = iter.next() {
+            // 由于上面已保证节点数为偶数，这里一定能取到 right
+            let right = iter.next().expect("node count should be even");
+            let parent = Node::new_internal(left, right);
+            next_level.push(Box::new(parent));
         }
         
         // --- 你的代码区域 End ---
@@ -149,4 +162,23 @@ pub fn run() {
     // 计算路径：
     // H(Root) = H( H(Tx1+Tx2) + H(Tx3+Tx3) )
     // 请运行代码，看输出是否符合你的预期。
+    println!("\n--- Manual Verification ---");
+    // transactions 所有权移进去了，从 tree.leaves 拿
+    let h1 = mock_hash(&tree.leaves[0]);
+    let h2 = mock_hash(&tree.leaves[1]);
+    let h3 = mock_hash(&tree.leaves[2]);
+    let h4 = h3.clone(); // 奇数个，复制最后一个
+
+    let p1 = mock_hash(&format!("{}{}", h1, h2));
+    let p2 = mock_hash(&format!("{}{}", h3, h4));
+    let expected_root = mock_hash(&format!("{}{}", p1, p2));
+
+    println!("Manual Calc: {}", expected_root);
+    
+    // transactions 所有权已移交给 tree，所以这里从 tree.leaves 取数据验证
+    if tree.root_hash() == expected_root {
+        println!("✅ Verification Success!");
+    } else {
+        println!("❌ Verification Failed!");
+    }
 }
