@@ -40,6 +40,12 @@ impl Node {
         let combined_data = format!("{}{}", left.hash, right.hash); 
         let new_hash = mock_hash(&combined_data);
 
+        /*
+        参数 left: Box<Node>：没有 &。说明这个函数是个强盗，它会把传入的子节点的所有权直接抢过来。
+        left: Some(left)：抢过来的所有权，直接装进自己的口袋（Option 字段）。
+        这就是为什么 build_recursive 可以不用 clone 的原因：
+            子节点自愿把自己“献祭”给了父节点，成为了父节点的一部分。
+         */
         Node {
             hash: new_hash,
             left: Some(left),   // 所有权移入
@@ -61,19 +67,48 @@ impl MerkleTree {
         if data.is_empty() {
             return MerkleTree { root: None, leaves: vec![] };
         }
+        /*
+        在其他语言可能会因为空数组导致数组越界 (IndexOutOfBounds) 或者递归死循环。
+        Rust 这里做了一个优雅的防御：如果给了空数据，我直接还你一棵“空树”（root: None）。
+        vec![] 宏创建了一个空的 Vector
+         */
 
         // 第一步：把所有数据变成叶子节点 (S01 Iterator)
-        let nodes: Vec<Box<Node>> = data.iter()
+        let nodes: Vec<Box<Node>> = data.iter()//
             .map(|d| Box::new(Node::new_leaf(d)))
             .collect();
+        /*
+        data.iter().map(...).collect() (链式调用)：
+        .iter()：借用 data 里的元素。
+        .map(|d| ...)：闭包 (Closure)。把每个字符串 d 变成一个 Box::new(Node::new_leaf(d))。
+        .collect()：这是 Rust 迭代器最强的地方。它会自动根据左边的类型标注 Vec<Box<Node>>，
+            把 map 产出的元素收集成一个 Vector。
+        
+        Box::new(...)：
+        Box 是堆内存分配。因为 Node 是递归结构，大小不定，如果不装在箱子（指针）里，编译器无法确定大小。
+         */
 
-        // 第二步：递归构建树
+        // 第二步：递归构建树 
+        // 这是最外层调用
         let root = Self::build_recursive(nodes);
+        // 调用关联函数 (Associated Function)，传入节点列表，返回根节点
+        // 这里把刚才打包好的那箱 nodes（所有权）直接扔给了 build_recursive。
+        // 所有权转移：在这行之后，new 函数里的 nodes 变量就不能用了。它归 build_recursive 管了。
+
 
         MerkleTree {
             root: Some(root),
-            leaves: data,
+            leaves: data,// 因为之前使用的是 data.iter()，data 仍然拥有所有权，可以直接用
         }
+
+        /*
+        总结 new 做了什么？
+            它是一个完美的转换器：
+            输入 Vec<String> （一堆生肉）
+            --> 映射转化为 Vec<Box<Node>> 赋给变量nodes（做成香肠）
+            --> 调用build_recursive递归压缩为 Box<Node> 返回给root（打包成礼盒）
+            --> 输出 MerkleTree 对象 （发货）
+         */
     }
 
     // 递归构建函数 (核心逻辑)
@@ -84,14 +119,24 @@ impl MerkleTree {
         if nodes.len() == 1 {
             return nodes.pop().unwrap(); // 拿出最后一个，返回
         }
+        /*
+        pop()：从 nodes 列表末尾弹出一个元素。返回 Option<Box<Node>>。
+        unwrap()：因为我们已经确认 len() == 1，所以这里一定有值。直接拆包拿出来返回。
+         */
 
         // 如果节点数是奇数，复制最后一个节点凑成偶数 (Bitcoin 的做法)
         if nodes.len() % 2 != 0 {
             let last = nodes.last().unwrap().clone();
             nodes.push(last);
         }
+        /*
+        nodes.last()：借用看一下最后一个元素（不拿走）。
+        unwrap()：确认有值，拆包拿出来。将会得到 &Box<Node>。
+        .clone()：深拷贝。这里必须克隆，因为我们要把它复制一份追加到队尾。
+        nodes.push(last)：把克隆体塞进列表。如果不加 mut 关键字，这行就会报错。
+         */
 
-        let mut next_level = Vec::new();
+        let mut next_level = Vec::new();// 保存上一层节点的容器
 
         // ❌ 任务 2：成对处理节点，生成上一层
         // 提示：使用 chunks(2) 迭代，每次拿两个节点 left 和 right
@@ -120,10 +165,18 @@ impl MerkleTree {
 
         // 优化方案：把 nodes 的所有权转移给迭代器，避免 clone 整个子树
         // 注意：into_iter 会按原顺序逐个产出节点，保证 Merkle 树顺序一致
+        // into_iter 不是借用，会消耗 nodes，之后不能再用它，后面新一轮就用 next_level 了
         let mut iter = nodes.into_iter();
+        // 一次循环调两次next(),先后取出 left 和 right
+        // 第一次拿 left。如果拿不到（None），说明传送带空了，循环结束 (while let）。
         while let Some(left) = iter.next() {
             // 由于上面已保证节点数为偶数，这里一定能取到 right
+            // 第二次拿 right。因为前面补齐了偶数，所以这里必然有值。
+            // expect()：如果取不到就 panic，提示“节点数应该是偶数”。但是这里不会发生。
             let right = iter.next().expect("node count should be even");
+            // 调用 new_internal 创建父节点 
+            // 注意：left 和 right 的所有权被转移进 new_internal
+            // new_internal 将左右两棵子树合并，返回一个 Node 类型
             let parent = Node::new_internal(left, right);
             next_level.push(Box::new(parent));
         }
@@ -132,10 +185,26 @@ impl MerkleTree {
 
         // 递归调用：构建上一层
         Self::build_recursive(next_level)
+
+        /*
+        第一层：输入 4 个，产出 [P1, P2] -> 扔给自己。
+        第二层：输入 2 个，产出 [Root] -> 扔给自己。
+        第三层：输入 1 个 -> 触发 [阶段 1]，直接返回 Root。
+        砰！砰！砰！ 递归栈层层弹回，最终最外层函数拿到了那个 Root。
+        
+        总结 build_recursive
+            它是一个不需要垃圾回收的内存机器。
+            通过 into_iter 和 Option 配合，它像贪吃蛇一样吞噬掉上一层的所有节点，
+            将它们的所有权转移给下一层，直到最后只剩一个头。没有任何内存泄漏，也没有任何不必要的复制。
+         */
+
     }
 
     pub fn root_hash(&self) -> String {
         match &self.root {
+            // node.hash 是 String 类型。
+            // .clone()：因为我要返回一个 String 给外部，而我手里只有一个借来的引用。
+            //  我不能把别人的东西送人，所以我必须复印一份（深拷贝字符串内容）送出去
             Some(node) => node.hash.clone(),
             None => String::from(""),
         }
@@ -154,6 +223,18 @@ pub fn run() {
 
     println!("Building Merkle Tree for {} transactions...", transactions.len());
     let tree = MerkleTree::new(transactions);
+
+    /*
+    交接：这是最关键的一行。
+        调用了 new。
+        所有权移交：transactions 变量被传入 new。
+        从此以后，run 函数里再也不能使用 transactions 这个变量了！
+        它已经属于 tree 对象内部了（变成了 tree.leaves）。
+    内部发生的事：
+        mock_hash 突突突地生成指纹。
+        build_recursive 呼啦啦地递归构建。
+        最终，所有的计算瞬间完成，返回一个封装好的 tree 对象。
+     */
 
     println!("Root Hash: {}", tree.root_hash());
 
